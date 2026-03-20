@@ -231,6 +231,26 @@ function filterEvents() {
   renderEventsTable(filtered);
 }
 
+// ── Media Tab Switching ─────────────────────────────────────────────────────
+function switchMediaTab(tab) {
+  const isUpload = tab === 'upload';
+  document.getElementById('tabUpload').classList.toggle('active', isUpload);
+  document.getElementById('tabEmbed').classList.toggle('active', !isUpload);
+  document.getElementById('mediaUploadPanel').style.display = isUpload ? '' : 'none';
+  document.getElementById('mediaEmbedPanel').style.display = isUpload ? 'none' : '';
+}
+
+function getEmbedHtml(url) {
+  if (!url) return '';
+  let src = '';
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (yt) src = `https://www.youtube.com/embed/${yt[1]}`;
+  else if (vimeo) src = `https://player.vimeo.com/video/${vimeo[1]}`;
+  if (src) return `<iframe src="${src}" style="width:100%;height:180px;border-radius:8px;border:none;" allowfullscreen></iframe>`;
+  return `<a href="${url}" target="_blank" style="display:block;padding:12px;background:#f4f6fb;border-radius:8px;font-size:13px;color:var(--navy);word-break:break-all;"><i class="fas fa-link" style="margin-right:6px;color:var(--gold);"></i>${url}</a>`;
+}
+
 // ── Event Modal ────────────────────────────────────────────────────────────
 function openEventModal(id = null) {
   editingEventId = id;
@@ -242,7 +262,11 @@ function openEventModal(id = null) {
   const form = document.getElementById('eventForm');
   form.reset();
   document.getElementById('imagePreview').style.display = 'none';
+  document.getElementById('videoPreview').style.display = 'none';
   document.getElementById('currentImageWrap').style.display = 'none';
+  document.getElementById('embedPreviewWrap').style.display = 'none';
+  document.getElementById('evVideoUrl').value = '';
+  switchMediaTab('upload');
 
   if (id) {
     const event = allEvents.find(e => e.id === id);
@@ -254,11 +278,23 @@ function openEventModal(id = null) {
       document.getElementById('evDesc').value = event.description || '';
       document.getElementById('evFeatured').checked = !!event.is_featured;
 
-      if (event.image_url) {
+      if (event.media_type === 'embed' && event.video_url) {
+        switchMediaTab('embed');
+        document.getElementById('evVideoUrl').value = event.video_url;
+        const preview = document.getElementById('embedPreviewWrap');
+        preview.innerHTML = getEmbedHtml(event.video_url);
+        preview.style.display = 'block';
+      } else if (event.image_url) {
         const wrap = document.getElementById('currentImageWrap');
         wrap.style.display = 'flex';
-        document.getElementById('currentImageThumb').src = event.image_url;
-        document.getElementById('currentImageName').textContent = 'Current photo';
+        if (event.media_type === 'video') {
+          document.getElementById('currentImageThumb').style.display = 'none';
+          document.getElementById('currentImageName').textContent = 'Current video (uploaded)';
+        } else {
+          document.getElementById('currentImageThumb').style.display = '';
+          document.getElementById('currentImageThumb').src = event.image_url;
+          document.getElementById('currentImageName').textContent = 'Current photo';
+        }
       }
     }
   }
@@ -271,22 +307,37 @@ function closeEventModal() {
   editingEventId = null;
 }
 
-function removeCurrentImage() {
+function removeCurrentMedia() {
   removeImage = true;
   document.getElementById('currentImageWrap').style.display = 'none';
 }
 
+// keep old name working
+function removeCurrentImage() { removeCurrentMedia(); }
+
 document.getElementById('evImage').addEventListener('change', e => {
   const file = e.target.files[0];
-  if (file) {
+  if (!file) return;
+  const isVideo = file.type.startsWith('video/');
+  const imgPrev = document.getElementById('imagePreview');
+  const vidPrev = document.getElementById('videoPreview');
+  if (isVideo) {
+    imgPrev.style.display = 'none';
+    vidPrev.src = URL.createObjectURL(file);
+    vidPrev.style.display = 'block';
+  } else {
+    vidPrev.style.display = 'none';
     const reader = new FileReader();
-    reader.onload = ev => {
-      const preview = document.getElementById('imagePreview');
-      preview.src = ev.target.result;
-      preview.style.display = 'block';
-    };
+    reader.onload = ev => { imgPrev.src = ev.target.result; imgPrev.style.display = 'block'; };
     reader.readAsDataURL(file);
   }
+});
+
+document.getElementById('evVideoUrl').addEventListener('input', e => {
+  const url = e.target.value.trim();
+  const preview = document.getElementById('embedPreviewWrap');
+  if (url) { preview.innerHTML = getEmbedHtml(url); preview.style.display = 'block'; }
+  else { preview.style.display = 'none'; }
 });
 
 document.getElementById('eventForm').addEventListener('submit', async e => {
@@ -298,6 +349,7 @@ document.getElementById('eventForm').addEventListener('submit', async e => {
   btn.disabled = true;
   btn.querySelector('span').textContent = 'Saving...';
 
+  const isEmbedTab = document.getElementById('tabEmbed').classList.contains('active');
   const formData = new FormData();
   formData.append('title', document.getElementById('evTitle').value);
   formData.append('event_date', document.getElementById('evDate').value);
@@ -306,9 +358,14 @@ document.getElementById('eventForm').addEventListener('submit', async e => {
   formData.append('description', document.getElementById('evDesc').value);
   formData.append('is_featured', document.getElementById('evFeatured').checked ? 'true' : 'false');
 
-  const imageFile = document.getElementById('evImage').files[0];
-  if (imageFile) formData.append('image', imageFile);
-  if (removeImage) formData.append('remove_image', 'true');
+  if (isEmbedTab) {
+    formData.append('video_url', document.getElementById('evVideoUrl').value.trim());
+  } else {
+    const imageFile = document.getElementById('evImage').files[0];
+    if (imageFile) formData.append('image', imageFile);
+    if (removeImage) formData.append('remove_image', 'true');
+    formData.append('video_url', '');
+  }
 
   try {
     const url = editingEventId ? `${API}/api/admin/events/${editingEventId}` : `${API}/api/admin/events`;

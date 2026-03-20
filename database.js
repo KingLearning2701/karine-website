@@ -24,10 +24,14 @@ async function initDB() {
       location TEXT,
       event_type TEXT DEFAULT 'event',
       image_url TEXT,
+      media_type TEXT DEFAULT 'image',
+      video_url TEXT,
       is_featured BOOLEAN DEFAULT false,
       created_at TIMESTAMPTZ DEFAULT NOW(),
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS media_type TEXT DEFAULT 'image';
+    ALTER TABLE events ADD COLUMN IF NOT EXISTS video_url TEXT;
 
     CREATE TABLE IF NOT EXISTS admins (
       id SERIAL PRIMARY KEY,

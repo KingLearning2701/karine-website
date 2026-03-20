@@ -443,6 +443,15 @@
     .form-check label { font-size: 14px; color: var(--dark); font-weight: 400; }
     .form-hint { font-size: 12px; color: var(--gray); }
 
+    /* Media Tab Buttons */
+    .media-tab-btn {
+      padding: 8px 16px; border-radius: 8px; font-size: 13px; font-weight: 500;
+      background: #F4F6FB; color: var(--gray); border: 1.5px solid #D1D9E8;
+      display: flex; align-items: center; gap: 6px; transition: all .2s;
+    }
+    .media-tab-btn.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+    .media-tab-btn:hover:not(.active) { border-color: var(--gold); color: var(--gold); }
+
     /* Image Upload */
     .image-upload-wrap {
       border: 2px dashed #D1D9E8;
@@ -792,18 +801,30 @@
           <textarea id="evDesc" rows="4" placeholder="Describe what happened at this event..."></textarea>
         </div>
         <div class="form-group">
-          <label>Event Photo</label>
-          <div class="image-upload-wrap" id="imageUploadWrap">
-            <input type="file" id="evImage" accept="image/*" />
-            <i class="fas fa-cloud-upload-alt"></i>
-            <strong>Click to upload image</strong>
-            <p>JPG, PNG, WebP — Max 10MB</p>
-            <img id="imagePreview" class="image-preview" alt="Preview" />
+          <label>Media</label>
+          <div style="display:flex;gap:8px;margin-bottom:12px;">
+            <button type="button" class="media-tab-btn active" id="tabUpload" onclick="switchMediaTab('upload')"><i class="fas fa-upload"></i> Upload File</button>
+            <button type="button" class="media-tab-btn" id="tabEmbed" onclick="switchMediaTab('embed')"><i class="fab fa-youtube"></i> Embed URL</button>
           </div>
-          <div id="currentImageWrap" style="display:none;" class="current-image">
-            <img id="currentImageThumb" src="" alt="Current" />
-            <span id="currentImageName">Current image</span>
-            <button type="button" onclick="removeCurrentImage()">Remove</button>
+          <div id="mediaUploadPanel">
+            <div class="image-upload-wrap" id="imageUploadWrap">
+              <input type="file" id="evImage" accept="image/*,video/mp4,video/mov,video/webm,video/avi" />
+              <i class="fas fa-cloud-upload-alt"></i>
+              <strong>Click to upload photo or video</strong>
+              <p>JPG, PNG, WebP, MP4, MOV — Max 200MB</p>
+              <img id="imagePreview" class="image-preview" alt="Preview" style="display:none;" />
+              <video id="videoPreview" class="image-preview" controls style="display:none;max-height:180px;"></video>
+            </div>
+            <div id="currentImageWrap" style="display:none;" class="current-image">
+              <img id="currentImageThumb" src="" alt="Current" />
+              <span id="currentImageName">Current photo</span>
+              <button type="button" onclick="removeCurrentMedia()">Remove</button>
+            </div>
+          </div>
+          <div id="mediaEmbedPanel" style="display:none;">
+            <input type="text" id="evVideoUrl" placeholder="Paste YouTube, Vimeo, or podcast URL..." style="width:100%;padding:12px;border:1.5px solid #D1D9E8;border-radius:10px;font-size:14px;" />
+            <p style="font-size:12px;color:var(--gray);margin-top:6px;"><i class="fas fa-info-circle"></i> Supports YouTube, Vimeo, Spotify, Apple Podcasts links</p>
+            <div id="embedPreviewWrap" style="margin-top:10px;display:none;"></div>
           </div>
         </div>
         <div class="form-check">

@@ -80,6 +80,24 @@ async function loadEvents() {
   }
 }
 
+function getEmbedLabel(url) {
+  if (!url) return 'Video';
+  if (url.includes('youtube') || url.includes('youtu.be')) return 'Watch on YouTube';
+  if (url.includes('vimeo')) return 'Watch on Vimeo';
+  if (url.includes('spotify')) return 'Listen on Spotify';
+  if (url.includes('apple') || url.includes('podcast')) return 'Listen to Podcast';
+  return 'Watch / Listen';
+}
+
+function getEmbedIframe(url) {
+  if (!url) return '';
+  const yt = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
+  const vimeo = url.match(/vimeo\.com\/(\d+)/);
+  if (yt) return `<iframe src="https://www.youtube.com/embed/${yt[1]}" style="width:100%;height:280px;border-radius:12px;border:none;" allowfullscreen></iframe>`;
+  if (vimeo) return `<iframe src="https://player.vimeo.com/video/${vimeo[1]}" style="width:100%;height:280px;border-radius:12px;border:none;" allowfullscreen></iframe>`;
+  return `<a href="${url}" target="_blank" rel="noopener" class="btn btn-primary" style="display:inline-flex;margin-bottom:12px;"><i class="fas fa-external-link-alt" style="margin-right:8px;"></i>${getEmbedLabel(url)}</a>`;
+}
+
 function getEventIcon(type) {
   const icons = { conference: 'fa-microphone', podcast: 'fa-podcast', seminar: 'fa-chalkboard-teacher', event: 'fa-calendar-star' };
   return icons[type] || 'fa-calendar';
@@ -110,7 +128,11 @@ function renderEvents() {
   grid.innerHTML = toShow.map(event => `
     <div class="event-card" onclick="openEventModal(${event.id})">
       <div class="event-card-image">
-        ${event.image_url
+        ${event.media_type === 'video' && event.image_url
+          ? `<video src="${event.image_url}" muted playsinline style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></video><div class="play-overlay"><i class="fas fa-play-circle"></i></div>`
+          : event.media_type === 'embed' && event.video_url
+          ? `<div class="embed-thumb"><i class="fas fa-play-circle"></i><span>${getEmbedLabel(event.video_url)}</span></div>`
+          : event.image_url
           ? `<img src="${event.image_url}" alt="${escHtml(event.title)}" loading="lazy" />`
           : `<i class="fas ${getEventIcon(event.event_type)}"></i>`
         }
@@ -159,9 +181,15 @@ function openEventModal(id) {
   const event = allEvents.find(e => e.id === id);
   if (!event) return;
 
-  modalImageWrap.innerHTML = event.image_url
-    ? `<img src="${event.image_url}" alt="${escHtml(event.title)}" />`
-    : '';
+  if (event.media_type === 'embed' && event.video_url) {
+    modalImageWrap.innerHTML = getEmbedIframe(event.video_url);
+  } else if (event.media_type === 'video' && event.image_url) {
+    modalImageWrap.innerHTML = `<video src="${event.image_url}" controls style="width:100%;border-radius:12px;max-height:320px;"></video>`;
+  } else if (event.image_url) {
+    modalImageWrap.innerHTML = `<img src="${event.image_url}" alt="${escHtml(event.title)}" />`;
+  } else {
+    modalImageWrap.innerHTML = '';
+  }
 
   modalContent.innerHTML = `
     <div class="event-type-badge ${getBadgeClass(event.event_type)}">

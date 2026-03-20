@@ -24,14 +24,19 @@ const storage = multer.diskStorage({
 });
 const upload = multer({
   storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 200 * 1024 * 1024 }, // 200MB for videos
   fileFilter: (req, file, cb) => {
-    const allowed = /jpeg|jpg|png|gif|webp/;
-    const ok = allowed.test(path.extname(file.originalname).toLowerCase()) && allowed.test(file.mimetype);
+    const allowed = /jpeg|jpg|png|gif|webp|mp4|mov|webm|avi|mkv/;
+    const ok = allowed.test(path.extname(file.originalname).toLowerCase());
     if (ok) cb(null, true);
-    else cb(new Error('Only image files are allowed'));
+    else cb(new Error('Only image and video files are allowed'));
   }
 });
+
+function getMediaType(filename) {
+  const ext = path.extname(filename).toLowerCase();
+  return /mp4|mov|webm|avi|mkv/.test(ext) ? 'video' : 'image';
+}
 
 // Middleware
 app.use(cors());
@@ -117,10 +122,19 @@ app.post('/api/admin/events', authenticateToken, upload.single('image'), async (
     const { title, description, event_date, location, event_type, is_featured } = req.body;
     if (!title) return res.status(400).json({ error: 'Title is required' });
 
-    const image_url = req.file ? `/uploads/${req.file.filename}` : null;
+    const { video_url } = req.body;
+    let image_url = null, media_type = 'image';
+
+    if (req.file) {
+      image_url = `/uploads/${req.file.filename}`;
+      media_type = getMediaType(req.file.filename);
+    } else if (video_url && video_url.trim()) {
+      media_type = 'embed';
+    }
+
     const result = await query(
-      'INSERT INTO events (title, description, event_date, location, event_type, image_url, is_featured) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id',
-      [title, description || null, event_date || null, location || null, event_type || 'event', image_url, is_featured === 'true']
+      'INSERT INTO events (title, description, event_date, location, event_type, image_url, media_type, video_url, is_featured) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) RETURNING id',
+      [title, description || null, event_date || null, location || null, event_type || 'event', image_url, media_type, video_url || null, is_featured === 'true']
     );
     res.status(201).json({ id: result.rows[0].id, message: 'Event created' });
   } catch (e) { res.status(500).json({ error: 'Server error' }); }
@@ -132,13 +146,15 @@ app.put('/api/admin/events/:id', authenticateToken, upload.single('image'), asyn
     const existing = (await query('SELECT * FROM events WHERE id = $1', [id])).rows[0];
     if (!existing) return res.status(404).json({ error: 'Event not found' });
 
-    const { title, description, event_date, location, event_type, is_featured, remove_image } = req.body;
+    const { title, description, event_date, location, event_type, is_featured, remove_image, video_url } = req.body;
     let image_url = existing.image_url;
+    let media_type = existing.media_type || 'image';
 
     if (remove_image === 'true' && existing.image_url) {
       const oldPath = path.join(__dirname, 'public', existing.image_url);
       if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       image_url = null;
+      media_type = video_url && video_url.trim() ? 'embed' : 'image';
     }
 
     if (req.file) {
@@ -147,13 +163,17 @@ app.put('/api/admin/events/:id', authenticateToken, upload.single('image'), asyn
         if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
       }
       image_url = `/uploads/${req.file.filename}`;
+      media_type = getMediaType(req.file.filename);
+    } else if (video_url !== undefined) {
+      media_type = video_url && video_url.trim() ? 'embed' : (image_url ? media_type : 'image');
     }
 
     await query(
       `UPDATE events SET title=$1, description=$2, event_date=$3, location=$4, event_type=$5,
-       image_url=$6, is_featured=$7, updated_at=NOW() WHERE id=$8`,
+       image_url=$6, media_type=$7, video_url=$8, is_featured=$9, updated_at=NOW() WHERE id=$10`,
       [title || existing.title, description ?? existing.description, event_date ?? existing.event_date,
-       location ?? existing.location, event_type || existing.event_type, image_url,
+       location ?? existing.location, event_type || existing.event_type, image_url, media_type,
+       video_url !== undefined ? (video_url || null) : existing.video_url,
        is_featured === 'true' ? true : (is_featured === 'false' ? false : existing.is_featured), id]
     );
     res.json({ message: 'Event updated' });
