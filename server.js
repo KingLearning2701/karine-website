@@ -285,6 +285,8 @@ app.get('/admin/*', (req, res) => res.sendFile(path.join(__dirname, 'public', 'a
 // ─── START ────────────────────────────────────────────────────────────────────
 
 const PORT = process.env.PORT || 3000;
+console.log('DATABASE_URL set:', !!process.env.DATABASE_URL);
+console.log('NODE_ENV:', process.env.NODE_ENV);
 initDB().then(() => {
   app.listen(PORT, () => {
     console.log(`\n🚀 Website → http://localhost:${PORT}`);
@@ -292,5 +294,6 @@ initDB().then(() => {
   });
 }).catch(err => {
   console.error('❌ Database connection failed:', err.message);
+  console.error('Full error:', err);
   process.exit(1);
 });
