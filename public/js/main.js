@@ -80,6 +80,20 @@ async function loadEvents() {
   }
 }
 
+function getYouTubeId(url) {
+  const m = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&?/]+)/);
+  return m ? m[1] : null;
+}
+
+function getEmbedThumbStyle(url) {
+  const ytId = getYouTubeId(url);
+  if (ytId) {
+    const thumb = `https://img.youtube.com/vi/${ytId}/hqdefault.jpg`;
+    return `background-image:url('${thumb}');background-size:cover;background-position:center;`;
+  }
+  return '';
+}
+
 function getEmbedLabel(url) {
   if (!url) return 'Video';
   if (url.includes('youtube') || url.includes('youtu.be')) return 'Watch on YouTube';
@@ -131,7 +145,7 @@ function renderEvents() {
         ${event.media_type === 'video' && event.image_url
           ? `<video src="${event.image_url}" muted playsinline style="width:100%;height:100%;object-fit:cover;border-radius:inherit;"></video><div class="play-overlay"><i class="fas fa-play-circle"></i></div>`
           : event.media_type === 'embed' && event.video_url
-          ? `<div class="embed-thumb"><i class="fas fa-play-circle"></i><span>${getEmbedLabel(event.video_url)}</span></div>`
+          ? `<div class="embed-thumb" style="${getEmbedThumbStyle(event.video_url)}"><div class="embed-thumb-overlay"><i class="fas fa-play-circle"></i><span>${getEmbedLabel(event.video_url)}</span></div></div>`
           : event.image_url
           ? `<img src="${event.image_url}" alt="${escHtml(event.title)}" loading="lazy" />`
           : `<i class="fas ${getEventIcon(event.event_type)}"></i>`

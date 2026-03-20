@@ -778,12 +778,16 @@ input, textarea, select { font-family: inherit; }
 }
 .play-overlay i { font-size: 52px; color: rgba(255,255,255,0.9); filter: drop-shadow(0 2px 8px rgba(0,0,0,0.4)); }
 .embed-thumb {
-  width: 100%; height: 100%; display: flex; flex-direction: column;
-  align-items: center; justify-content: center; gap: 10px;
+  width: 100%; height: 100%; position: relative;
   background: linear-gradient(135deg, #1B2A4A 0%, #0F1A30 100%);
 }
-.embed-thumb i { font-size: 48px; color: var(--gold); }
-.embed-thumb span { font-size: 13px; color: rgba(255,255,255,0.75); font-weight: 500; text-align: center; padding: 0 12px; }
+.embed-thumb-overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 10px;
+  background: rgba(0,0,0,0.35);
+}
+.embed-thumb-overlay i { font-size: 52px; color: rgba(255,255,255,0.95); filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5)); }
+.embed-thumb-overlay span { font-size: 13px; color: rgba(255,255,255,0.9); font-weight: 600; text-align: center; padding: 0 12px; text-shadow: 0 1px 4px rgba(0,0,0,0.6); }
 
 .event-card-body { padding: 20px; }
 
