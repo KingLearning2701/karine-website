@@ -163,6 +163,13 @@ function renderEvents() {
         </div>
         ${event.description ? `<p class="event-card-desc">${escHtml(event.description)}</p>` : ''}
       </div>
+      <div class="event-share-bar" onclick="event.stopPropagation()">
+        <span class="share-label"><i class="fas fa-share-alt"></i> Share</span>
+        <button class="share-btn share-wa"   title="Share on WhatsApp"       onclick="shareWhatsApp(${event.id},event)"><i class="fab fa-whatsapp"></i></button>
+        <button class="share-btn share-ig"   title="Share to Instagram"      onclick="shareInstagram(${event.id},event)"><i class="fab fa-instagram"></i></button>
+        <button class="share-btn share-igs"  title="Share to Instagram Story" onclick="shareIGStory(${event.id},event)"><i class="fab fa-instagram"></i><span class="story-badge">Story</span></button>
+        <button class="share-btn share-copy" title="Copy link"               onclick="copyEventLink(${event.id},event)"><i class="fas fa-link"></i></button>
+      </div>
     </div>
   `).join('');
 
@@ -216,6 +223,15 @@ function openEventModal(id) {
       ${event.location ? `<div class="event-meta-item"><i class="fas fa-map-marker-alt"></i>${escHtml(event.location)}</div>` : ''}
     </div>
     ${event.description ? `<p>${escHtml(event.description)}</p>` : ''}
+    <div class="modal-share-bar">
+      <span class="share-label"><i class="fas fa-share-alt"></i> Share this event</span>
+      <div class="modal-share-btns">
+        <button class="modal-share-btn share-wa"  onclick="shareWhatsApp(${event.id})"><i class="fab fa-whatsapp"></i> WhatsApp</button>
+        <button class="modal-share-btn share-ig"  onclick="shareInstagram(${event.id})"><i class="fab fa-instagram"></i> Instagram</button>
+        <button class="modal-share-btn share-igs" onclick="shareIGStory(${event.id})"><i class="fab fa-instagram"></i> IG Story</button>
+        <button class="modal-share-btn share-copy" id="modalCopyBtn" onclick="copyEventLink(${event.id})"><i class="fas fa-link"></i> Copy Link</button>
+      </div>
+    </div>
   `;
 
   modal.classList.add('open');
@@ -312,6 +328,84 @@ function escHtml(str) {
 
 function capitalize(str) {
   return str ? str.charAt(0).toUpperCase() + str.slice(1) : '';
+}
+
+// ── Share Functions ─────────────────────────────────────────────────────────
+function getEventShareData(id) {
+  const ev = allEvents.find(e => e.id === id);
+  if (!ev) return null;
+  const url = `${window.location.origin}${window.location.pathname}#events`;
+  const text = `${ev.title}${ev.event_date ? ' — ' + formatDate(ev.event_date) : ''}${ev.location ? ' 📍 ' + ev.location : ''}\n\nKarine Yengo | karineyengo.com\n${url}`;
+  return { ev, url, text };
+}
+
+function shareWhatsApp(id, e) {
+  if (e) e.stopPropagation();
+  const d = getEventShareData(id);
+  if (!d) return;
+  window.open(`https://wa.me/?text=${encodeURIComponent(d.text)}`, '_blank');
+}
+
+function shareInstagram(id, e) {
+  if (e) e.stopPropagation();
+  const d = getEventShareData(id);
+  if (!d) return;
+  // Use Web Share API on mobile (surfaces Instagram in native share sheet)
+  if (navigator.share) {
+    navigator.share({ title: d.ev.title, text: d.text, url: d.url }).catch(() => {});
+  } else {
+    // Desktop fallback: copy to clipboard + prompt
+    navigator.clipboard.writeText(d.text).then(() => {
+      showShareToast('Caption copied! Open Instagram and paste it in your post.');
+    }).catch(() => {
+      showShareToast('Copy this link and share on Instagram: ' + d.url);
+    });
+  }
+}
+
+function shareIGStory(id, e) {
+  if (e) e.stopPropagation();
+  const d = getEventShareData(id);
+  if (!d) return;
+  // Try Instagram Stories deep link (works on mobile with Instagram app installed)
+  const imageUrl = d.ev.image_url ? `${window.location.origin}${d.ev.image_url}` : '';
+  const stickerUrl = encodeURIComponent(imageUrl);
+  const contentUrl = encodeURIComponent(d.url);
+  const bgTop = encodeURIComponent('#1B2A4A');
+  const bgBottom = encodeURIComponent('#C4974F');
+  const igStoryUrl = `instagram-stories://share?backgroundTopColor=${bgTop}&backgroundBottomColor=${bgBottom}${imageUrl ? '&stickerImage=' + stickerUrl : ''}&contentURL=${contentUrl}`;
+
+  // Try the deep link; if it doesn't open (desktop/no app) fall back to copy
+  const tryOpen = window.open(igStoryUrl, '_self');
+  setTimeout(() => {
+    navigator.clipboard.writeText(d.url).catch(() => {});
+    showShareToast('Link copied! Open Instagram → Your Story → add a Link sticker and paste it.');
+  }, 1500);
+}
+
+function copyEventLink(id, e) {
+  if (e) e.stopPropagation();
+  const d = getEventShareData(id);
+  if (!d) return;
+  navigator.clipboard.writeText(d.url).then(() => {
+    showShareToast('Link copied to clipboard!');
+    // Flash the button if in modal
+    const btn = document.getElementById('modalCopyBtn');
+    if (btn) { btn.innerHTML = '<i class="fas fa-check"></i> Copied!'; setTimeout(() => { btn.innerHTML = '<i class="fas fa-link"></i> Copy Link'; }, 2000); }
+  });
+}
+
+function showShareToast(msg) {
+  let toast = document.getElementById('shareToast');
+  if (!toast) {
+    toast = document.createElement('div');
+    toast.id = 'shareToast';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => toast.classList.remove('show'), 3500);
 }
 
 // ── Init ───────────────────────────────────────────────────────────────────
